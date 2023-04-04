@@ -5,26 +5,48 @@ import { useOrderDataStore } from "../stores/base";
 
 const store = useOrderDataStore();
 
-const postConifgData = async () => {
-  const parsedOrderData = JSON.parse(JSON.stringify(store.orderData));
-  postOrderConfigData(parsedOrderData);
-};
-
 async function postOrderConfigData(data) {
-  await fetch(`localhost`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  await fetch(`http://127.0.0.1:404/request/post`, {
+    method: 'POST',
+        headers: {
+          Authorization: `Bearer`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+        })
 }
+
+async function getOrderConfigData() {
+  const getResponse = await fetch(`http://127.0.0.1:404/request/get`, {
+    method: 'GET',
+        headers: {
+          Authorization: `Bearer`,
+          'Content-Type': 'application/json',
+        }
+  })
+  if (await getResponse) {
+    const restoredData = await getResponse.json();
+    store.orderData.entityState = restoredData.entityState ?? null;
+    store.orderData.entityType = restoredData.entityType ?? null;
+    store.orderData.bundleName = restoredData.bundleName ?? null;
+    store.orderData.firstName = restoredData.firstName ?? null;
+    store.orderData.lastName = restoredData.lastName ?? null;
+    store.orderData.emailAddress = restoredData.emailAddress ?? null;
+    store.orderData.phoneNumber = restoredData.phoneNumber ?? null;
+    store.orderData.businessName = restoredData.businessName ?? null;
+  }
+}
+
 const event = new Event("navButtonClick");
 
 function navButtonClick(e) {
-  console.log(JSON.stringify(store.orderData));
   dispatchEvent(event);
-  postOrderConfigData();
+  postOrderConfigData(store.orderData);
 }
+
 onMounted(() => {
   installWorker();
+  getOrderConfigData();
 });
 </script>
 <template>

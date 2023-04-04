@@ -1,14 +1,8 @@
-const cacheName = "v4";
-
-//Call Install Event
-// eslint-disable-next-line no-unused-vars
-self.addEventListener("install", (e) => {
-  console.log("Service Worker: Installed");
-});
+const cacheName = "v1";
+const cacheUrl = "/state/orderData";
 
 //Call Activate Event
 self.addEventListener("activate", (e) => {
-  console.log("Service Worker: Activated");
   //Remove old/unwanted caches
   e.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -24,22 +18,67 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+const cacheStateData = async (event) => {
+  function cachedState() {
+    return event.request.clone().json();
+  }
+  const stateCache = await cachedState();
+
+  const options = {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    statusText: "Success!",
+  };
+  const stateBody = JSON.stringify(stateCache);
+
+  const orderDataRes = new Response(stateBody, options);
+  const cache = await caches.open(cacheName);
+  await cache.put(cacheUrl, orderDataRes);
+
+  const resBody = JSON.stringify({ successful: true });
+  const newResponse = new Response(resBody, options);
+
+  return newResponse;
+};
+
+const buildEmptyRequest = async () => {
+  const nullState = {
+    entityState: null,
+    entityType: null,
+    bundleName: null,
+    firstName: null,
+    lastName: null,
+    emailAddress: null,
+    phoneNumber: null,
+    businessName: null,
+  };
+  const options = {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    statusText: "Success!",
+  };
+  const emptyBody = JSON.stringify(nullState);
+
+  const emptyRes = new Response(emptyBody, options);
+  const cache = await caches.open(cacheName);
+  await cache.put(cacheUrl, emptyRes);
+  return emptyRes;
+};
+
 //Call Fetch Event
-self.addEventListener("fetch", (e) => {
-  console.log("Service Worker: Fetching");
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        //Make clone of response
-        const resClone = res.clone();
-        //Open cache
-        caches.open(cacheName).then((cache) => {
-          //Add response to cache
-          cache.put(e.request, resClone);
-        });
-        return res;
+self.addEventListener("fetch", (event) => {
+  if (event.request.url === `http://127.0.0.1:404/request/post`) {
+    event.respondWith(cacheStateData(event));
+  } else if (event.request.url === `http://127.0.0.1:404/request/get`) {
+    event.respondWith(
+      caches.match(cacheUrl).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return buildEmptyRequest();
       })
-      // eslint-disable-next-line no-unused-vars
-      .catch((err) => caches.match(e.request).then((res) => res))
-  );
+    );
+  } else {
+    event.respondWith(fetch(event.request));
+  }
 });
